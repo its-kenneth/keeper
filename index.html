@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Swipe through a folder of photos to keep, star or reject them, then download your selects as a zip. Photos never leave your device.">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Swipe Cull</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen culling app on a neutral darkroom grey. Frame counter rail on top, the photo fills the middle, four verdict buttons in a thumb row. Deliberately single (dark) theme: photos are judged against neutral grey. */
+:root{
+  --ground:#19191b;
+  --panel:#232326;
+  --raise:#2d2d31;
+  --line:#3a3a40;
+  --ink:#ededeb;
+  --mute:#94949a;
+  --keep:#5cc08e;
+  --keep-soft:rgba(92,192,142,.14);
+  --reject:#e4675f;
+  --reject-soft:rgba(228,103,95,.14);
+  --star:#f1b94a;
+  --star-soft:rgba(241,185,74,.14);
+  --shade:rgba(0,0,0,.5);
+  --f-display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"DM Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--ground);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+button:focus-visible,.link:focus-visible{outline:2px solid var(--star);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+h1,h2{margin:0;text-wrap:balance}
+p{margin:0}
+
+.app{height:100%;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px}
+
+.brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.mark{font-family:var(--f-display);font-weight:700;font-size:21px;letter-spacing:-.01em}
+.mark span{color:var(--star)}
+.tag{font-size:11px;letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600}
+.btn:hover{background:var(--raise)}
+.btn.primary{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.btn.primary:hover{background:#ffffff}
+.btn.small{min-height:36px;padding:0 14px;font-size:14px}
+.btn:disabled{opacity:.45;cursor:default}
+.link{background:none;border:0;padding:4px 2px;color:var(--mute);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:14px}
+.link:hover{color:var(--ink)}
+
+/* Start */
+.drop{flex:1;min-height:0;overflow-y:auto;border:1.5px dashed var(--line);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:28px 20px;text-align:center;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--star);background:var(--star-soft)}
+.drop h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,5vw,38px);letter-spacing:-.015em;line-height:1.1}
+.drop .lede{color:var(--mute);max-width:46ch}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.fine{font-size:13px;color:var(--mute);max-width:46ch}
+
+.legend{display:grid;grid-template-columns:minmax(0,1fr) 112px minmax(0,1fr);grid-template-rows:auto 140px auto;gap:10px 14px;align-items:center;justify-items:center;width:min(100%,360px)}
+.legend .frame{grid-column:2;grid-row:2;width:112px;height:140px;border-radius:12px;border:1px solid var(--line);background:radial-gradient(circle at 68% 34%,#f6d58e 0 9%,transparent 10%),linear-gradient(172deg,#3b4a63 0%,#8a6a78 48%,#d48f5d 70%,#3a3633 71%,#2a2826 100%);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.lg{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}
+.lg.up{grid-column:2;grid-row:1;color:var(--star)}
+.lg.left{grid-column:1;grid-row:2;justify-self:end;color:var(--reject)}
+.lg.right{grid-column:3;grid-row:2;justify-self:start;color:var(--keep)}
+.lg.down{grid-column:2;grid-row:3;color:var(--mute)}
+kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;border-radius:6px;border:1px solid var(--line);border-bottom-width:2px;background:var(--panel);color:var(--ink)}
+
+/* Cull */
+.rail{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px}
+.count{font-size:22px;font-weight:500;letter-spacing:.02em;white-space:nowrap}
+.count .of{color:var(--mute);font-size:13px;margin-left:4px}
+.file{min-width:0}
+.fname{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fpath{font-size:11px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tally{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--mute)}
+.tally span{display:inline-flex;align-items:center;gap:6px}
+.tally i{width:8px;height:8px;border-radius:2px;display:inline-block;background:var(--line)}
+.tally b{color:var(--ink);font-weight:500}
+.tally .k i{background:var(--keep)} .tally .s i{background:var(--star)} .tally .r i{background:var(--reject)}
+.track{height:4px;border-radius:2px;background:var(--raise);display:flex;overflow:hidden}
+.track span{height:100%;transition:width .2s}
+.track .k{background:var(--keep)} .track .s{background:var(--star)} .track .r{background:var(--reject)}
+
+.stage{flex:1;min-height:0;position:relative}
+.card{position:absolute;inset:0;border-radius:16px;background:var(--panel);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;box-shadow:0 12px 32px rgba(0,0,0,.4)}
+.card:active{cursor:grabbing}
+.card img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;-webkit-user-drag:none;transition:opacity .12s}
+.card.loading img{opacity:0}
+.card.next{transform:scale(.95) translateY(10px);opacity:.45;box-shadow:none;pointer-events:none}
+.card.ghost{pointer-events:none;z-index:3}
+.card.enter{animation:enter .22s ease-out}
+@keyframes enter{from{transform:scale(.94);opacity:.4}to{transform:none;opacity:1}}
+.spin{position:absolute;left:50%;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--ink);animation:spin .8s linear infinite;display:none}
+.card.loading .spin{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.broken-msg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--mute);padding:20px;text-align:center}
+.card.broken .broken-msg{display:flex}
+.stamp{position:absolute;padding:6px 14px;border:3px solid currentColor;border-radius:8px;font-family:var(--f-display);font-weight:700;font-size:clamp(20px,4vw,30px);letter-spacing:.08em;opacity:0;pointer-events:none;background:var(--shade)}
+.stamp.k{top:22px;left:22px;color:var(--keep);transform:rotate(-12deg)}
+.stamp.r{top:22px;right:22px;color:var(--reject);transform:rotate(12deg)}
+.stamp.s{bottom:28px;left:50%;color:var(--star);transform:translateX(-50%)}
+.chip{position:absolute;left:12px;bottom:12px;font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:6px;background:var(--shade);color:var(--ink)}
+
+.verdicts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.v{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:14px;background:var(--panel);border:1px solid var(--line);cursor:pointer;transition:background .12s,transform .08s}
+.v:hover{background:var(--raise)}
+.v:active{transform:scale(.97)}
+.v:disabled{opacity:.4;cursor:default}
+.v svg{width:26px;height:26px}
+.v span{font-size:12px;font-weight:600;color:var(--ink)}
+.v.k{color:var(--keep)} .v.s{color:var(--star)} .v.r{color:var(--reject)} .v.u{color:var(--mute)}
+.v kbd{height:20px;font-size:11px;min-width:22px}
+@media (hover:none){.v kbd{display:none}}
+
+/* Done */
+.done{overflow-y:auto}
+.done-inner{display:flex;flex-direction:column;gap:18px;padding-bottom:12px;max-width:720px;width:100%;margin:0 auto}
+.done h1{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,5vw,36px);letter-spacing:-.015em;line-height:1.1}
+.sum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile .n{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,6vw,36px);line-height:1.1}
+.tile .l{font-size:13px;font-weight:600}
+.tile .b{font-size:12px;color:var(--mute)}
+.tile.s .n{color:var(--star)} .tile.k .n{color:var(--keep)} .tile.r .n{color:var(--reject)}
+.warn{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--star-soft);border:1px solid var(--star)}
+.exp{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.exp-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.exp h2{font-size:17px;font-weight:600}
+.exp .desc{font-size:13px;color:var(--mute)}
+.bar{height:6px;border-radius:3px;background:var(--raise);overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--ink);transition:width .15s}
+.status{font-size:13px;color:var(--mute);min-height:1em}
+.exp.rc{background:var(--reject-soft);border-color:var(--reject)}
+.exp.rc .status{color:var(--ink)}
+.tally .pill{color:var(--reject);border:1px solid var(--reject);border-radius:999px;padding:0 8px;font-weight:500}
+.chip.r{background:var(--reject);color:var(--ground)}
+.parts{display:flex;gap:8px;flex-wrap:wrap}
+.foot{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 104px);max-width:min(92vw,440px);padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--ground);font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:20;text-align:center}
+
+@media (max-width:480px){
+  .count{font-size:18px}
+  .rail{gap:10px}
+  .legend{grid-template-rows:auto 120px auto;grid-template-columns:minmax(0,1fr) 96px minmax(0,1fr)}
+  .legend .frame{width:96px;height:120px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <section id="start" class="screen">
+    <header class="brand">
+      <div class="mark">Swipe Cull<span>.</span></div>
+      <div class="tag mono">JPG · PNG · subfolders included</div>
+    </header>
+    <div id="drop" class="drop">
+      <div class="legend" aria-hidden="true">
+        <div class="lg up"><kbd>↑</kbd>Star</div>
+        <div class="lg left">Reject<kbd>←</kbd></div>
+        <div class="frame"></div>
+        <div class="lg right"><kbd>→</kbd>Keep</div>
+        <div class="lg down"><kbd>↓</kbd>Back</div>
+      </div>
+      <h1>Drop a folder of photos</h1>
+      <p class="lede">Every photo starts unassigned. Swipe on your phone or use the arrow keys on a laptop. When you're done, download your keeps and stars as one zip.</p>
+      <div class="actions">
+        <button id="pickFolder" class="btn primary">Choose folder</button>
+        <button id="pickFiles" class="btn">Choose photos</button>
+      </div>
+      <p class="fine">Photos stay on this device and are never uploaded. Pick the same folder again later to carry on where you left off. On iPhone, use Choose photos, since Safari can't open folders.</p>
+      <button id="trySample" class="link">Try it with 12 sample frames</button>
+    </div>
+    <input type="file" id="inFolder" webkitdirectory multiple hidden>
+    <input type="file" id="inFiles" multiple accept="image/jpeg,image/png,.jpg,.jpeg,.png" hidden>
+  </section>
+
+  <section id="cull" class="screen" hidden>
+    <header class="rail">
+      <div class="count mono"><span id="frameNo">0001</span><span class="of">/ <span id="frameTotal">0000</span></span></div>
+      <div class="file">
+        <div id="fname" class="fname"></div>
+        <div id="fpath" class="fpath mono"></div>
+      </div>
+      <button id="finishBtn" class="btn small">Finish</button>
+    </header>
+    <div class="tally mono">
+      <span id="modePill" class="pill" hidden></span>
+      <span class="k"><i></i><b id="nK">0</b> keep</span>
+      <span class="s"><i></i><b id="nS">0</b> starred</span>
+      <span class="r"><i></i><b id="nR">0</b> reject</span>
+      <span><i></i><b id="nU">0</b> unassigned</span>
+    </div>
+    <div class="track" aria-hidden="true"><span id="tS" class="s"></span><span id="tK" class="k"></span><span id="tR" class="r"></span></div>
+    <div id="stage" class="stage">
+      <div id="cardNext" class="card next"><img id="imgNext" alt=""></div>
+      <div id="card" class="card">
+        <img id="img" alt="">
+        <div class="spin"></div>
+        <div class="broken-msg">This file can't be shown, but you can still sort it.</div>
+        <div class="stamp k">KEEP</div>
+        <div class="stamp r">REJECT</div>
+        <div class="stamp s">STAR</div>
+        <div id="chip" class="chip">Unassigned</div>
+      </div>
+    </div>
+    <nav class="verdicts" aria-label="Verdict">
+      <button id="bR" class="v r" aria-label="Reject"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Reject</span><kbd>←</kbd></button>
+      <button id="bU" class="v u" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg><span>Back</span><kbd>↓</kbd></button>
+      <button id="bS" class="v s" aria-label="Star"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg><span>Star</span><kbd>↑</kbd></button>
+      <button id="bK" class="v k" aria-label="Keep"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5L19.5 7"/></svg><span>Keep</span><kbd>→</kbd></button>
+    </nav>
+  </section>
+
+  <section id="done" class="screen done" hidden>
+    <header class="brand">
+      <div class="mark">Swipe Cull<span>.</span></div>
+      <div class="tag mono" id="doneRoot"></div>
+    </header>
+    <div class="done-inner">
+      <h1 id="doneTitle">All photos sorted</h1>
+      <div class="sum">
+        <div class="tile s"><div class="n mono" id="dS">0</div><div class="l">Starred</div><div class="b mono" id="dSb"></div></div>
+        <div class="tile k"><div class="n mono" id="dK">0</div><div class="l">Kept</div><div class="b mono" id="dKb"></div></div>
+        <div class="tile r"><div class="n mono" id="dR">0</div><div class="l">Rejected</div><div class="b mono" id="dRb"></div></div>
+      </div>
+      <div id="warn" class="warn" hidden>
+        <span id="warnText"></span>
+        <button id="keepCulling" class="btn small">Keep culling</button>
+      </div>
+
+      <div id="rcPanel" class="exp rc">
+        <div class="exp-head">
+          <div><h2>Second look at rejects</h2><div class="desc">See only your rejects again. Swipe right or up on any you want back.</div></div>
+          <button id="rcBtn" class="btn">Recull rejects</button>
+        </div>
+        <div class="status" id="rcNote"></div>
+      </div>
+
+      <div class="exp">
+        <div class="exp-head">
+          <div><h2>Selects</h2><div class="desc mono" id="selDesc"></div></div>
+          <button id="exSel" class="btn primary">Download selects .zip</button>
+        </div>
+        <div class="bar" id="selBar" hidden><span></span></div>
+        <div class="parts" id="selParts"></div>
+        <div class="status" id="selStatus"></div>
+      </div>
+
+      <div class="exp">
+        <div class="exp-head">
+          <div><h2>Rejects</h2><div class="desc mono" id="rejDesc"></div></div>
+          <button id="exRej" class="btn">Download rejects .zip</button>
+        </div>
+        <div class="bar" id="rejBar" hidden><span></span></div>
+        <div class="parts" id="rejParts"></div>
+        <div class="status" id="rejStatus"></div>
+      </div>
+
+      <div class="foot">
+        <button id="backBtn" class="btn small">Back to last photo</button>
+        <button id="newSet" class="btn small">Open another folder</button>
+        <button id="resetBtn" class="link">Clear all decisions for this folder</button>
+      </div>
+    </div>
+  </section>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+(function(){
+const $ = id => document.getElementById(id);
+const LS = 'swipecull.v1';
+const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Plain-website download: hand the browser a blob link.
+const plainDownloads = {
+  save({ filename, data }) {
+    const blob = data instanceof Blob ? data : new Blob([data]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.style.display = 'none';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+    return Promise.resolve({ status: 'saved' });
+  }
+};
+const dlP = (window.claude && typeof window.claude.use === 'function')
+  ? window.claude.use('downloads').catch(() => null).then(d => d || plainDownloads)
+  : Promise.resolve(plainDownloads);
+
+/* ---------- state ---------- */
+let items = [];            // {file, path, rel, name, dir, key}
+let keyIndex = new Map();
+let rootName = 'photos';
+let cur = -1;
+let ver = 0;
+const dec = new Map();     // key -> 'k' | 's' | 'r'
+let hist = [];             // undo stack: {k, v, p} = key, new verdict, previous verdict (null = was unassigned)
+let mode = 'all';          // 'all' = sort unassigned photos, 'recull' = second look at rejects
+let rc = null;             // recull pass: {set: keys rejected at start, reviewed: keys decided this pass, round}
+let rounds = 1;
+const cache = {};
+let saveT = 0, saveWarned = false;
+
+try {
+  const raw = localStorage.getItem(LS);
+  if (raw) {
+    const o = JSON.parse(raw);
+    for (const k in (o.d || {})) dec.set(k, o.d[k]);
+    if (Array.isArray(o.h)) hist = o.h.filter(Array.isArray).map(([k, v, p]) => ({ k, v, p: p || null }));
+    else if (Array.isArray(o.o)) hist = o.o.filter(k => dec.has(k)).map(k => ({ k, v: dec.get(k), p: null }));
+  }
+} catch (e) {}
+
+function save(){
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try {
+      const d = {};
+      for (const [k, v] of dec) if (!k.startsWith('sample:')) d[k] = v;
+      const h = hist.filter(e => !e.k.startsWith('sample:') && dec.has(e.k)).slice(-20000).map(e => [e.k, e.v, e.p]);
+      localStorage.setItem(LS, JSON.stringify({ d, h }));
+    } catch (e) {
+      if (!saveWarned) { saveWarned = true; toast("Progress can't be saved in this browser, so finish in one sitting."); }
+    }
+  }, 250);
+}
+
+/* ---------- ui helpers ---------- */
+let toastT = 0;
+function toast(msg, ms){
+  const t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms || 3200);
+}
+function show(name){
+  for (const s of ['start','cull','done']) $(s).hidden = s !== name;
+}
+function fmt(b){
+  if (b < 1e6) return Math.max(1, Math.round(b/1e3)) + ' KB';
+  if (b < 1e9) return (b/1e6).toFixed(b < 1e7 ? 1 : 0) + ' MB';
+  return (b/1e9).toFixed(2) + ' GB';
+}
+const pad = n => String(n).padStart(4, '0');
+
+/* ---------- ingest ---------- */
+function ingest(list, opts){
+  opts = opts || {};
+  const ok = [], seen = new Set(); let skipped = 0;
+  for (const { file, path } of list) {
+    const base = path.split('/').pop();
+    if (base.startsWith('.')) continue;
+    if (!/\.(jpe?g|png)$/i.test(base)) { skipped++; continue; }
+    const key = (opts.sample ? 'sample:' : '') + path + '|' + file.size + '|' + file.lastModified;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    ok.push({ file, path, key });
+  }
+  if (!ok.length) {
+    toast(skipped ? `No JPEG or PNG photos found. ${skipped} other files were skipped.` : 'No photos found in that selection.');
+    return;
+  }
+  const segs = ok.map(o => o.path.split('/'));
+  let root = '';
+  if (segs.every(s => s.length > 1) && segs.every(s => s[0] === segs[0][0])) root = segs[0][0];
+  ok.forEach(o => { o.rel = root ? o.path.slice(root.length + 1) : o.path; });
+  ok.sort((a, b) => a.rel.localeCompare(b.rel, undefined, { numeric: true, sensitivity: 'base' }));
+  ok.forEach(o => { const p = o.rel.split('/'); o.name = p.pop(); o.dir = p.join('/'); });
+
+  if (opts.sample) { for (const o of ok) dec.delete(o.key); hist = hist.filter(e => !e.k.startsWith('sample:')); }
+  mode = 'all'; rc = null; rounds = 1;
+  revokeAll();
+  items = ok;
+  keyIndex = new Map(ok.map((o, i) => [o.key, i]));
+  rootName = root || 'photos';
+  ver++;
+  clearExports();
+
+  const resumed = ok.filter(o => dec.has(o.key)).length;
+  cur = nextUnassigned(0);
+  const notes = [];
+  if (resumed) notes.push(`Resumed ${resumed} earlier decision${resumed === 1 ? '' : 's'}`);
+  if (skipped) notes.push(`skipped ${skipped} non-JPEG/PNG file${skipped === 1 ? '' : 's'}`);
+  if (notes.length) { const m = notes.join(', '); toast(m.charAt(0).toUpperCase() + m.slice(1) + '.'); }
+
+  if (cur < 0) showDone();
+  else { show('cull'); render(true); }
+}
+
+async function walk(entry, out){
+  if (entry.isFile) {
+    try {
+      const f = await new Promise((res, rej) => entry.file(res, rej));
+      out.push({ file: f, path: entry.fullPath.replace(/^\/+/, '') });
+    } catch (e) {}
+  } else if (entry.isDirectory) {
+    const r = entry.createReader();
+    let batch;
+    do {
+      batch = await new Promise((res, rej) => r.readEntries(res, rej));
+      for (const c of batch) await walk(c, out);
+    } while (batch.length);
+  }
+}
+
+$('pickFolder').onclick = () => $('inFolder').click();
+$('pickFiles').onclick = () => $('inFiles').click();
+$('inFolder').onchange = e => {
+  const fs = [...e.target.files];
+  ingest(fs.map(f => ({ file: f, path: f.webkitRelativePath || f.name })));
+  e.target.value = '';
+};
+$('inFiles').onchange = e => {
+  const fs = [...e.target.files];
+  ingest(fs.map(f => ({ file: f, path: f.name })));
+  e.target.value = '';
+};
+
+const drop = $('drop');
+['dragenter','dragover'].forEach(t => window.addEventListener(t, e => {
+  if ($('start').hidden) return;
+  if (e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files')) { e.preventDefault(); drop.classList.add('over'); }
+}));
+window.addEventListener('dragleave', e => { if (!e.relatedTarget) drop.classList.remove('over'); });
+window.addEventListener('drop', async e => {
+  e.preventDefault();
+  drop.classList.remove('over');
+  if ($('start').hidden || !e.dataTransfer) return;
+  const dtItems = [...(e.dataTransfer.items || [])];
+  const entries = dtItems.map(i => i.webkitGetAsEntry ? i.webkitGetAsEntry() : null).filter(Boolean);
+  if (entries.length) {
+    toast('Reading folder…', 60000);
+    const out = [];
+    for (const en of entries) await walk(en, out);
+    $('toast').hidden = true;
+    ingest(out);
+  } else {
+    ingest([...e.dataTransfer.files].map(f => ({ file: f, path: f.name })));
+  }
+});
+
+/* ---------- sample frames ---------- */
+async function makeSamples(){
+  const skies = [
+    ['#2b3a55','#e2955f'],['#1f4d6b','#9fd0e0'],['#3a2f4f','#f0a87a'],['#21313d','#6f8fa3'],
+    ['#4a3b2a','#e9c27a'],['#123a3f','#7cc2b5'],['#3d2b3b','#d97f86'],['#25344a','#b8c7d9'],
+    ['#2e2a24','#c9a26b'],['#1b2b3a','#5f86a8'],['#402a2a','#ef8e5b'],['#22383a','#a7c9a0']
+  ];
+  const out = [];
+  for (let i = 0; i < 12; i++) {
+    const portrait = i % 4 === 3;
+    const c = document.createElement('canvas');
+    c.width = portrait ? 1000 : 1500; c.height = portrait ? 1500 : 1000;
+    const x = c.getContext('2d'), W = c.width, H = c.height, [a, b] = skies[i];
+    if (i % 5 === 2 && 'filter' in x) x.filter = 'blur(7px)';
+    const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, a); g.addColorStop(.62, b); g.addColorStop(1, a);
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    x.fillStyle = 'rgba(255,236,190,.85)'; x.beginPath(); x.arc(W * (.25 + .5 * ((i * 37) % 10) / 10), H * .36, Math.min(W, H) * .07, 0, 7); x.fill();
+    for (let l = 0; l < 3; l++) {
+      x.fillStyle = `rgba(${18 + l * 10},${20 + l * 8},${24 + l * 6},${.55 + l * .2})`;
+      x.beginPath(); x.moveTo(0, H);
+      for (let px = 0; px <= W; px += 20) x.lineTo(px, H * (.55 + l * .12) + Math.sin(px / (120 + l * 60) + i + l) * H * .05);
+      x.lineTo(W, H); x.fill();
+    }
+    x.filter = 'none';
+    x.fillStyle = 'rgba(255,255,255,.75)'; x.font = `${Math.round(H * .03)}px ui-monospace, Menlo, monospace`;
+    x.fillText(`SAMPLE ${String(i + 1).padStart(2, '0')}${i % 5 === 2 ? '  · soft focus' : ''}`, W * .04, H * .95);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .85));
+    const name = `DSC_${4021 + i}.jpg`;
+    out.push({ file: new File([blob], name, { type: 'image/jpeg', lastModified: 1760000000000 + i * 60000 }), path: `Sample roll/${i < 6 ? 'Day 1 Coast' : 'Day 2 Hills'}/${name}` });
+  }
+  return out;
+}
+$('trySample').onclick = async () => { ingest(await makeSamples(), { sample: true }); };
+
+/* ---------- navigation ---------- */
+function rcPending(k){ return !!rc && rc.set.has(k) && !rc.reviewed.has(k) && dec.get(k) === 'r'; }
+function isPending(i){
+  const k = items[i].key;
+  return mode === 'recull' ? rcPending(k) : !dec.has(k);
+}
+function rcLeft(){ let n = 0; for (const it of items) if (rcPending(it.key)) n++; return n; }
+function lookLabel(r){ return ['', 'First pass', 'Second look', 'Third look', 'Fourth look', 'Fifth look'][r] || `Look ${r}`; }
+function nextUnassigned(from){
+  for (let i = from; i < items.length; i++) if (isPending(i)) return i;
+  for (let i = 0; i < Math.min(from, items.length); i++) if (isPending(i)) return i;
+  return -1;
+}
+function peekNext(){
+  if (cur < 0) return -1;
+  for (let i = cur + 1; i < items.length; i++) if (isPending(i)) return i;
+  for (let i = 0; i < cur; i++) if (isPending(i)) return i;
+  return -1;
+}
+function lastUndoIndex(){
+  for (let j = hist.length - 1; j >= 0; j--) { const e = hist[j]; if (keyIndex.has(e.k) && dec.get(e.k) === e.v) return j; }
+  return -1;
+}
+function counts(){
+  const c = { k:0, s:0, r:0, kb:0, sb:0, rb:0 };
+  for (const it of items) {
+    const v = dec.get(it.key);
+    if (v) { c[v]++; c[v + 'b'] += it.file.size; }
+  }
+  c.u = items.length - c.k - c.s - c.r;
+  return c;
+}
+
+/* ---------- images ---------- */
+const urls = new Map();
+function urlFor(i){
+  const k = items[i].key;
+  if (!urls.has(k)) urls.set(k, URL.createObjectURL(items[i].file));
+  return urls.get(k);
+}
+function revokeAll(){ for (const u of urls.values()) URL.revokeObjectURL(u); urls.clear(); }
+let pruneT = 0;
+function schedulePrune(){
+  clearTimeout(pruneT);
+  pruneT = setTimeout(() => {
+    const keep = new Set();
+    const add = i => { if (i >= 0 && items[i]) keep.add(items[i].key); };
+    add(cur); const n = peekNext(); add(n);
+    if (n >= 0) { for (let i = n + 1; i < items.length; i++) if (isPending(i)) { add(i); break; } }
+    const j = lastUndoIndex(); if (j >= 0) add(keyIndex.get(hist[j].k));
+    for (const [k, u] of urls) if (!keep.has(k)) { URL.revokeObjectURL(u); urls.delete(k); }
+  }, 900);
+}
+function preloadAfter(n){
+  if (n < 0) return;
+  for (let i = n + 1; i < items.length; i++) if (isPending(i)) {
+    const im = new Image(); im.src = urlFor(i); if (im.decode) im.decode().catch(() => {}); break;
+  }
+}
+
+const card = $('card'), img = $('img'), stage = $('stage');
+function setMain(i){
+  const it = items[i];
+  if (img.dataset.key === it.key) return;
+  card.classList.remove('broken');
+  card.classList.add('loading');
+  img.dataset.key = it.key;
+  img.onload = () => card.classList.remove('loading');
+  img.onerror = () => { card.classList.remove('loading'); card.classList.add('broken'); };
+  img.src = urlFor(i);
+  img.alt = it.name;
+  if (img.complete && img.naturalWidth) card.classList.remove('loading');
+}
+
+/* ---------- render ---------- */
+function render(enter){
+  if (cur < 0) { showDone(); return; }
+  const it = items[cur];
+  const rcOn = mode === 'recull';
+  if (rcOn) {
+    const left = rcLeft();
+    $('frameNo').textContent = pad(rc.set.size - left + 1);
+    $('frameTotal').textContent = pad(rc.set.size);
+    $('modePill').textContent = `${lookLabel(rc.round)} · ${left} left`;
+  } else {
+    $('frameNo').textContent = pad(cur + 1);
+    $('frameTotal').textContent = pad(items.length);
+  }
+  $('modePill').hidden = !rcOn;
+  $('chip').textContent = rcOn ? 'Rejected earlier' : 'Unassigned';
+  $('chip').classList.toggle('r', rcOn);
+  $('fname').textContent = it.name; $('fname').title = it.name;
+  $('fpath').textContent = rootName + (it.dir ? ' / ' + it.dir.split('/').join(' / ') : '');
+  setMain(cur);
+  const n = peekNext();
+  if (n >= 0) { $('cardNext').hidden = false; const ni = $('imgNext'); const u = urlFor(n); if (ni.src !== u) ni.src = u; }
+  else $('cardNext').hidden = true;
+  preloadAfter(n);
+  const c = counts(), t = items.length || 1;
+  $('nK').textContent = c.k; $('nS').textContent = c.s; $('nR').textContent = c.r; $('nU').textContent = c.u;
+  $('tK').style.width = (c.k / t * 100) + '%'; $('tS').style.width = (c.s / t * 100) + '%'; $('tR').style.width = (c.r / t * 100) + '%';
+  $('bU').disabled = lastUndoIndex() < 0;
+  resetCard();
+  if (enter && !reduced) { card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter'); }
+  schedulePrune();
+}
+function resetCard(){
+  card.style.transition = 'none';
+  card.style.transform = '';
+  card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0);
+}
+
+/* ---------- decisions ---------- */
+function fly(v, fromTransform){
+  if (reduced) return;
+  const g = card.cloneNode(true);
+  g.removeAttribute('id');
+  g.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+  g.classList.remove('enter','loading');
+  g.classList.add('ghost');
+  g.style.transition = 'none';
+  g.style.transform = fromTransform || '';
+  g.querySelectorAll('.stamp').forEach(s => s.style.opacity = s.classList.contains(v) ? 1 : 0);
+  stage.appendChild(g);
+  void g.offsetWidth;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  g.style.transition = 'transform .32s cubic-bezier(.2,.7,.3,1), opacity .32s ease-in';
+  g.style.transform = v === 'k' ? `translate(${W * 1.25}px, 40px) rotate(18deg)`
+    : v === 'r' ? `translate(${-W * 1.25}px, 40px) rotate(-18deg)`
+    : `translate(0, ${-H * 1.2}px) scale(.9)`;
+  g.style.opacity = '0';
+  setTimeout(() => g.remove(), 380);
+}
+function decide(v, fromTransform){
+  if (cur < 0 || $('cull').hidden) return;
+  const it = items[cur];
+  fly(v, fromTransform || card.style.transform);
+  const p = dec.has(it.key) ? dec.get(it.key) : null;
+  dec.set(it.key, v);
+  hist.push({ k: it.key, v, p });
+  if (mode === 'recull') rc.reviewed.add(it.key);
+  ver++; save();
+  cur = nextUnassigned(cur + 1);
+  if (cur < 0) { resetCard(); setTimeout(showDone, reduced ? 0 : 320); updateTallyOnly(); }
+  else render(false);
+}
+function updateTallyOnly(){
+  const c = counts(), t = items.length || 1;
+  $('nK').textContent = c.k; $('nS').textContent = c.s; $('nR').textContent = c.r; $('nU').textContent = c.u;
+  $('tK').style.width = (c.k / t * 100) + '%'; $('tS').style.width = (c.s / t * 100) + '%'; $('tR').style.width = (c.r / t * 100) + '%';
+}
+function undo(){
+  const j = lastUndoIndex();
+  if (j < 0) { toast('Nothing to go back to yet.'); return; }
+  const e = hist[j];
+  hist.splice(j, 1);
+  if (e.p) {
+    // a second-look decision: put the photo back to its earlier verdict and back in the recull queue
+    dec.set(e.k, e.p);
+    if (!rc) rc = { set: new Set(), reviewed: new Set(), round: Math.max(2, rounds) };
+    rc.set.add(e.k); rc.reviewed.delete(e.k);
+    mode = 'recull';
+  } else {
+    dec.delete(e.k);
+    mode = 'all';
+  }
+  ver++; save();
+  cur = keyIndex.get(e.k);
+  show('cull');
+  img.dataset.key = '';
+  render(true);
+}
+
+$('bK').onclick = () => decide('k');
+$('bR').onclick = () => decide('r');
+$('bS').onclick = () => decide('s');
+$('bU').onclick = () => undo();
+$('finishBtn').onclick = () => showDone();
+
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+  const k = e.key;
+  if (!$('cull').hidden) {
+    if (k === 'ArrowLeft') { e.preventDefault(); decide('r'); }
+    else if (k === 'ArrowRight') { e.preventDefault(); decide('k'); }
+    else if (k === 'ArrowUp') { e.preventDefault(); decide('s'); }
+    else if (k === 'ArrowDown') { e.preventDefault(); undo(); }
+  } else if (!$('done').hidden && k === 'ArrowDown') { e.preventDefault(); undo(); }
+});
+
+/* ---------- swipe ---------- */
+let drag = null;
+card.addEventListener('pointerdown', e => {
+  if (cur < 0 || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  drag = { x: e.clientX, y: e.clientY, id: e.pointerId, moved: false };
+  card.setPointerCapture(e.pointerId);
+  card.style.transition = 'none';
+});
+card.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+  card.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx / 22}deg)`;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const vert = -dy > Math.abs(dx);
+  const st = card.querySelectorAll('.stamp');
+  st[0].style.opacity = vert ? 0 : Math.max(0, Math.min(1, dx / (W * .22)));
+  st[1].style.opacity = vert ? 0 : Math.max(0, Math.min(1, -dx / (W * .22)));
+  st[2].style.opacity = vert ? Math.max(0, Math.min(1, -dy / (H * .18))) : 0;
+});
+function endDrag(e){
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag = null;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const from = card.style.transform;
+  if (-dy > H * .18 && -dy > Math.abs(dx)) return decide('s', from);
+  if (dx > W * .22) return decide('k', from);
+  if (dx < -W * .22) return decide('r', from);
+  card.style.transition = 'transform .2s ease-out';
+  card.style.transform = '';
+  card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0);
+}
+card.addEventListener('pointerup', endDrag);
+card.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) { drag = null; card.style.transition = 'transform .2s'; card.style.transform = ''; card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0); } });
+
+/* ---------- done screen ---------- */
+function showDone(){
+  const c = counts();
+  show('done');
+  $('doneRoot').textContent = rootName;
+  $('doneTitle').textContent = c.u === 0 ? `All ${items.length} photos sorted` : `${items.length - c.u} of ${items.length} photos sorted`;
+  $('dS').textContent = c.s; $('dSb').textContent = fmt(c.sb);
+  $('dK').textContent = c.k; $('dKb').textContent = fmt(c.kb);
+  $('dR').textContent = c.r; $('dRb').textContent = fmt(c.rb);
+  $('warn').hidden = c.u === 0;
+  $('warnText').textContent = `${c.u} photo${c.u === 1 ? ' is' : 's are'} still unassigned and won't be in either zip.`;
+  $('selDesc').textContent = `Starred/ ${c.s} · Keep/ ${c.k} · ${fmt(c.sb + c.kb)}`;
+  $('rejDesc').textContent = `Rejects/ ${c.r} · ${fmt(c.rb)}`;
+  $('exSel').disabled = c.s + c.k === 0;
+  $('exRej').disabled = c.r === 0;
+  $('backBtn').disabled = lastUndoIndex() < 0;
+  const left = rcLeft();
+  $('rcPanel').hidden = c.r === 0 && !(rc && rc.reviewed.size);
+  $('rcBtn').hidden = c.r === 0;
+  $('rcBtn').textContent = left > 0 ? `Continue · ${left} left` : `Recull ${c.r} reject${c.r === 1 ? '' : 's'}`;
+  if (rc && rc.reviewed.size) {
+    let back = 0;
+    for (const k of rc.reviewed) if (keyIndex.has(k) && (dec.get(k) === 'k' || dec.get(k) === 's')) back++;
+    $('rcNote').textContent = `${lookLabel(rc.round)}: ${back} of ${rc.reviewed.size} reviewed reject${rc.reviewed.size === 1 ? '' : 's'} moved to your selects` + (left > 0 ? `, ${left} still to review.` : '.');
+  } else $('rcNote').textContent = '';
+  for (const kind of ['sel','rej']) {
+    const ch = cache[kind];
+    if (!ch || ch.ver !== ver) { $(kind + 'Parts').innerHTML = ''; $(kind + 'Status').textContent = ''; $(kind === 'sel' ? 'exSel' : 'exRej').textContent = kind === 'sel' ? 'Download selects .zip' : 'Download rejects .zip'; }
+  }
+}
+$('keepCulling').onclick = () => { mode = 'all'; cur = nextUnassigned(0); if (cur >= 0) { show('cull'); img.dataset.key = ''; render(true); } };
+function startRecull(){
+  if (!(rc && rcLeft() > 0)) {
+    const set = new Set(items.filter(it => dec.get(it.key) === 'r').map(it => it.key));
+    if (!set.size) return;
+    rounds++;
+    rc = { set, reviewed: new Set(), round: rounds };
+  }
+  mode = 'recull';
+  cur = nextUnassigned(0);
+  if (cur < 0) { mode = 'all'; showDone(); return; }
+  show('cull'); img.dataset.key = ''; render(true);
+  toast('Swipe right or up to bring a photo back. Swipe left to leave it rejected.');
+}
+$('rcBtn').onclick = startRecull;
+$('backBtn').onclick = () => undo();
+$('newSet').onclick = () => {
+  revokeAll(); items = []; keyIndex = new Map(); cur = -1; mode = 'all'; rc = null; rounds = 1; img.dataset.key = ''; img.removeAttribute('src'); clearExports();
+  show('start');
+};
+let resetArmed = false, resetT = 0;
+$('resetBtn').onclick = () => {
+  if (!resetArmed) {
+    resetArmed = true; $('resetBtn').textContent = 'Tap again to clear every decision';
+    clearTimeout(resetT); resetT = setTimeout(() => { resetArmed = false; $('resetBtn').textContent = 'Clear all decisions for this folder'; }, 4000);
+    return;
+  }
+  resetArmed = false; $('resetBtn').textContent = 'Clear all decisions for this folder';
+  for (const it of items) dec.delete(it.key);
+  hist = hist.filter(e => !keyIndex.has(e.k));
+  mode = 'all'; rc = null; rounds = 1;
+  ver++; save(); clearExports();
+  cur = nextUnassigned(0); img.dataset.key = '';
+  show('cull'); render(true);
+  toast('Decisions cleared. Every photo is unassigned again.');
+};
+
+/* ---------- zip (store, no compression) ---------- */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crcUpdate(c, buf){ const T = CRC_T; for (let i = 0, n = buf.length; i < n; i++) c = T[(c ^ buf[i]) & 0xff] ^ (c >>> 8); return c; }
+async function crcFile(file, onBytes){
+  let c = 0xFFFFFFFF, read = 0;
+  if (file.stream) {
+    const r = file.stream().getReader();
+    for (;;) { const { done, value } = await r.read(); if (done) break; c = crcUpdate(c, value); read += value.length; onBytes(read); }
+  } else {
+    const buf = new Uint8Array(await file.arrayBuffer()); c = crcUpdate(c, buf); onBytes(buf.length);
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function dosTime(ms){
+  const d = new Date(ms || Date.now());
+  const y = Math.max(1980, d.getFullYear());
+  return { time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date: ((y - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate() };
+}
+const LIMIT = 4000000000;
+async function buildZips(entries, onProg){
+  const enc = new TextEncoder();
+  const total = entries.reduce((a, e) => a + e.file.size, 0) || 1;
+  let doneBytes = 0;
+  const parts = [];
+  const fresh = () => ({ chunks: [], central: [], offset: 0, cd: 0, count: 0, bytes: 0 });
+  let p = fresh();
+  for (const e of entries) {
+    const name = enc.encode(e.name), size = e.file.size;
+    const need = 30 + name.length + size + 46 + name.length;
+    if (p.count > 0 && (p.offset + p.cd + need + 22 > LIMIT || p.count >= 65000)) { parts.push(p); p = fresh(); }
+    let crc;
+    try { crc = await crcFile(e.file, n => onProg(doneBytes + n, total)); }
+    catch (err) { throw new Error(`Couldn't read ${e.name}. It may have been moved or deleted. Open the folder again and retry.`); }
+    doneBytes += size;
+    const { time, date } = dosTime(e.file.lastModified);
+    const lh = new Uint8Array(30 + name.length), lv = new DataView(lh.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true); lv.setUint16(8, 0, true);
+    lv.setUint16(10, time, true); lv.setUint16(12, date, true); lv.setUint32(14, crc, true);
+    lv.setUint32(18, size, true); lv.setUint32(22, size, true); lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true);
+    lh.set(name, 30);
+    const ch = new Uint8Array(46 + name.length), cv = new DataView(ch.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true);
+    cv.setUint16(12, time, true); cv.setUint16(14, date, true); cv.setUint32(16, crc, true);
+    cv.setUint32(20, size, true); cv.setUint32(24, size, true); cv.setUint16(28, name.length, true);
+    cv.setUint16(30, 0, true); cv.setUint16(32, 0, true); cv.setUint16(34, 0, true); cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true); cv.setUint32(42, p.offset, true);
+    ch.set(name, 46);
+    p.chunks.push(lh, e.file); p.central.push(ch);
+    p.offset += lh.length + size; p.cd += ch.length; p.count++; p.bytes += size;
+  }
+  parts.push(p);
+  return parts.map(q => {
+    const eo = new Uint8Array(22), ev = new DataView(eo.buffer);
+    ev.setUint32(0, 0x06054b50, true); ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+    ev.setUint16(8, q.count, true); ev.setUint16(10, q.count, true); ev.setUint32(12, q.cd, true); ev.setUint32(16, q.offset, true); ev.setUint16(20, 0, true);
+    return { blob: new Blob([...q.chunks, ...q.central, eo], { type: 'application/zip' }), count: q.count, bytes: q.bytes };
+  });
+}
+function entriesFor(kind){
+  const out = [], used = new Set();
+  const addAs = (it, folder) => {
+    let n = folder + '/' + it.rel, i = 2;
+    while (used.has(n.toLowerCase())) { n = folder + '/' + it.rel.replace(/(\.[^./]+)$/, ` (${i++})$1`); }
+    used.add(n.toLowerCase());
+    out.push({ file: it.file, name: n });
+  };
+  if (kind === 'sel') {
+    for (const it of items) if (dec.get(it.key) === 's') addAs(it, 'Starred');
+    for (const it of items) if (dec.get(it.key) === 'k') addAs(it, 'Keep');
+  } else {
+    for (const it of items) if (dec.get(it.key) === 'r') addAs(it, 'Rejects');
+  }
+  return out;
+}
+function clearExports(){ delete cache.sel; delete cache.rej; }
+const base = () => (rootName.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'photos');
+
+const ui = k => ({ btn: $(k === 'sel' ? 'exSel' : 'exRej'), bar: $(k + 'Bar'), status: $(k + 'Status'), parts: $(k + 'Parts') });
+async function runExport(kind){
+  const u = ui(kind);
+  const dl = await dlP;
+  if (!dl) { u.status.textContent = "Downloads aren't available in this view. Open this page in claude.ai or the Claude app to save the zip."; return; }
+  let c = cache[kind];
+  if (!c || c.ver !== ver) {
+    const entries = entriesFor(kind);
+    if (!entries.length) return;
+    u.btn.disabled = true; u.bar.hidden = false; u.parts.innerHTML = '';
+    const fill = u.bar.firstElementChild;
+    let last = 0;
+    try {
+      const parts = await buildZips(entries, (n, t) => {
+        const now = performance.now(); if (now - last < 80) return; last = now;
+        fill.style.width = (n / t * 100).toFixed(1) + '%';
+        u.status.textContent = `Preparing zip: ${fmt(n)} of ${fmt(t)}`;
+      });
+      const tag = kind === 'sel' ? 'selects' : 'rejects';
+      parts.forEach((p, i) => p.filename = parts.length > 1 ? `${base()}-${tag}-part${i + 1}-of-${parts.length}.zip` : `${base()}-${tag}.zip`);
+      c = cache[kind] = { ver, parts };
+    } catch (err) {
+      u.status.textContent = err.message || "Couldn't prepare the zip.";
+      u.btn.disabled = false; u.bar.hidden = true;
+      return;
+    }
+    u.btn.disabled = false; u.bar.hidden = true; fill.style.width = '0';
+  }
+  if (c.parts.length === 1) {
+    u.btn.textContent = 'Save again';
+    await savePart(kind, 0);
+  } else {
+    u.btn.textContent = 'Rebuild zips';
+    u.status.textContent = `Over 4 GB, so it's split into ${c.parts.length} zips. Save each part.`;
+    u.parts.innerHTML = '';
+    c.parts.forEach((p, i) => {
+      const b = document.createElement('button');
+      b.className = 'btn small'; b.id = `${kind}-part-${i}`;
+      b.textContent = `Part ${i + 1} · ${p.count} photos · ${fmt(p.bytes)}`;
+      b.onclick = () => savePart(kind, i, b);
+      u.parts.appendChild(b);
+    });
+  }
+}
+async function savePart(kind, i, btn){
+  const u = ui(kind), dl = await dlP, c = cache[kind];
+  if (!dl || !c) return;
+  const p = c.parts[i];
+  u.status.textContent = `Saving ${p.filename} (${fmt(p.blob.size)})…`;
+  try {
+    await dl.save({ filename: p.filename, data: p.blob });
+    u.status.textContent = `Saved ${p.filename}.`;
+    if (btn) btn.textContent = `Part ${i + 1} saved`;
+  } catch (err) {
+    const code = err && err.code;
+    u.status.textContent =
+      code === 'declined' ? 'Download cancelled. Tap the button to try again.' :
+      code === 'rate_limited' ? 'Another download prompt is already open. Finish that one, then try again.' :
+      code === 'too_large' ? 'This zip is too large for this device to save. Try on a laptop.' :
+      (err && err.message) ? `The download didn't go through: ${err.message}` : "The download didn't go through.";
+  }
+}
+$('exSel').onclick = () => runExport('sel');
+$('exRej').onclick = () => runExport('rej');
+
+window.addEventListener('beforeunload', revokeAll);
+})();
+</script>
+
+</body>
+</html>
