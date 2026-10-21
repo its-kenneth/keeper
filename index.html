@@ -4,79 +4,62 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Keeper: Tinder, but for photos. Swipe right on keepers, left on rejects, up to star, then download your selects as a zip. Photos never leave your device.">
-<style>
-:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-body{margin:0}
-img{max-width:100%}
-[hidden]{display:none!important}
-</style>
 <title>Keeper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: one-screen culling app on a neutral darkroom grey. Frame counter rail on top, the photo fills the middle, four verdict buttons in a thumb row. Deliberately single (dark) theme: photos are judged against neutral grey. */
 :root{
-  --ground:#19191b;
-  --panel:#232326;
-  --raise:#2d2d31;
-  --line:#3a3a40;
-  --ink:#ededeb;
-  --mute:#94949a;
-  --keep:#5cc08e;
-  --keep-soft:rgba(92,192,142,.14);
-  --reject:#e4675f;
-  --reject-soft:rgba(228,103,95,.14);
-  --star:#f1b94a;
-  --star-soft:rgba(241,185,74,.14);
-  --shade:rgba(0,0,0,.5);
+  --ground:#19191b;--panel:#232326;--raise:#2d2d31;--line:#3a3a40;--ink:#ededeb;--mute:#94949a;
+  --keep:#5cc08e;--reject:#e4675f;--star:#f1b94a;
+  --star-soft:rgba(241,185,74,.14);--shade:rgba(0,0,0,.5);
   --f-display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
   --f-body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-mono:"DM Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   color-scheme:dark;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
-body{background:var(--ground);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;overflow:hidden;-webkit-tap-highlight-color:transparent}
-button{font:inherit;color:inherit}
-button:focus-visible,.link:focus-visible{outline:2px solid var(--star);outline-offset:2px}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;overflow:hidden;-webkit-tap-highlight-color:transparent}
+img{max-width:100%}
+[hidden]{display:none!important}
+button,select{font:inherit;color:inherit}
+button:focus-visible,select:focus-visible,.link:focus-visible{outline:2px solid var(--star);outline-offset:2px}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 h1,h2{margin:0;text-wrap:balance}
 p{margin:0}
-
 .app{height:100%;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
 .screen{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px}
-
 .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .mark{font-family:var(--f-display);font-weight:700;font-size:21px;letter-spacing:-.01em}
-.mark span{color:var(--keep)}
-.drop h1 .kn{color:var(--keep)}
+.mark span,.drop h1 .kn{color:var(--keep)}
 .brand-end,.rail-end{display:flex;gap:10px;align-items:center}
 .icon-btn{width:36px;height:36px;flex:none;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 .icon-btn:hover{background:var(--raise)}
 .icon-btn svg{width:18px;height:18px}
 .rot{position:absolute;top:10px;right:10px;z-index:4;width:44px;height:44px;background:var(--shade);border-color:transparent;display:none}
 .rot svg{width:22px;height:22px}
+.dlb{position:absolute;right:10px;bottom:10px;z-index:4;width:44px;height:44px;background:var(--shade);border-color:transparent}
+.dlb svg{width:22px;height:22px}
 @media (hover:none),(pointer:coarse){.rot{display:inline-flex}.stamp.r{top:66px}}
-
-.sheet-wrap{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-top:max(16px,env(safe-area-inset-top,0px));padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}
+.sheet-wrap{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:min(100%,560px);max-height:100%;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:18px;box-shadow:0 16px 48px rgba(0,0,0,.5)}
 .sheet-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .sheet h2{font-family:var(--f-display);font-weight:700;font-size:22px}
 .sc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
 .sc h3{margin:0 0 10px;font-family:var(--f-mono);font-weight:500;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
 .sc dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px 12px;align-items:center}
-.sc dt{display:flex;gap:4px;align-items:center;font-family:var(--f-mono);font-size:12px;color:var(--ink);white-space:nowrap}
+.sc dt{display:flex;gap:4px;align-items:center;font-family:var(--f-mono);font-size:12px;white-space:nowrap}
 .sc dd{margin:0;font-size:14px}
 .sc dd small{display:block;color:var(--mute);font-size:12px}
 .note{font-size:13px;color:var(--mute);border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:6px}
 @media (max-width:520px){.sc{grid-template-columns:1fr}}
 .tag{font-size:11px;letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
-
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600}
 .btn:hover{background:var(--raise)}
 .btn.primary{background:var(--ink);color:var(--ground);border-color:var(--ink)}
-.btn.primary:hover{background:#ffffff}
+.btn.primary:hover{background:#fff}
 .btn.small{min-height:36px;padding:0 14px;font-size:14px}
 .btn:disabled{opacity:.45;cursor:default}
 .link{background:none;border:0;padding:4px 2px;color:var(--mute);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:14px}
@@ -89,7 +72,6 @@ p{margin:0}
 .drop .lede{color:var(--mute);max-width:46ch}
 .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .fine{font-size:13px;color:var(--mute);max-width:46ch}
-
 .legend{display:grid;grid-template-columns:minmax(0,1fr) 112px minmax(0,1fr);grid-template-rows:auto 140px auto;gap:10px 14px;align-items:center;justify-items:center;width:min(100%,360px)}
 .legend .frame{grid-column:2;grid-row:2;width:112px;height:140px;border-radius:12px;border:1px solid var(--line);background:radial-gradient(circle at 68% 34%,#f6d58e 0 9%,transparent 10%),linear-gradient(172deg,#3b4a63 0%,#8a6a78 48%,#d48f5d 70%,#3a3633 71%,#2a2826 100%);box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .lg{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}
@@ -110,11 +92,13 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
 .tally span{display:inline-flex;align-items:center;gap:6px}
 .tally i{width:8px;height:8px;border-radius:2px;display:inline-block;background:var(--line)}
 .tally b{color:var(--ink);font-weight:500}
-.tally .k i{background:var(--keep)} .tally .s i{background:var(--star)} .tally .r i{background:var(--reject)}
+.tally .k i{background:var(--keep)}.tally .s i{background:var(--star)}.tally .r i{background:var(--reject)}
+.tally .pill{color:var(--reject);border:1px solid var(--reject);border-radius:999px;padding:0 8px;font-weight:500}
+.tally .pill.s{color:var(--star);border-color:var(--star)}
+.tally .pill.k{color:var(--keep);border-color:var(--keep)}
 .track{height:4px;border-radius:2px;background:var(--raise);display:flex;overflow:hidden}
 .track span{height:100%;transition:width .2s}
-.track .k{background:var(--keep)} .track .s{background:var(--star)} .track .r{background:var(--reject)}
-
+.track .k{background:var(--keep)}.track .s{background:var(--star)}.track .r{background:var(--reject)}
 .stage{flex:1;min-height:0;position:relative}
 .card{position:absolute;inset:0;border-radius:16px;background:var(--panel);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;box-shadow:0 12px 32px rgba(0,0,0,.4)}
 .card:active{cursor:grabbing}
@@ -135,7 +119,9 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
 .stamp.r{top:22px;right:22px;color:var(--reject);transform:rotate(12deg)}
 .stamp.s{bottom:28px;left:50%;color:var(--star);transform:translateX(-50%)}
 .chip{position:absolute;left:12px;bottom:12px;font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:6px;background:var(--shade);color:var(--ink)}
-
+.chip.r{background:var(--reject);color:var(--ground)}
+.chip.s{background:var(--star);color:var(--ground)}
+.chip.k{background:var(--keep);color:var(--ground)}
 .verdicts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .v{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border-radius:14px;background:var(--panel);border:1px solid var(--line);cursor:pointer;transition:background .12s,transform .08s}
 .v:hover{background:var(--raise)}
@@ -143,7 +129,7 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
 .v:disabled{opacity:.4;cursor:default}
 .v svg{width:26px;height:26px}
 .v span{font-size:12px;font-weight:600;color:var(--ink)}
-.v.k{color:var(--keep)} .v.s{color:var(--star)} .v.r{color:var(--reject)} .v.u{color:var(--mute)}
+.v.k{color:var(--keep)}.v.s{color:var(--star)}.v.r{color:var(--reject)}.v.u{color:var(--mute)}
 .v kbd{height:20px;font-size:11px;min-width:22px}
 @media (hover:none){.v kbd{display:none}}
 
@@ -156,7 +142,7 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
 .tile .n{font-family:var(--f-display);font-weight:700;font-size:clamp(26px,6vw,36px);line-height:1.1}
 .tile .l{font-size:13px;font-weight:600}
 .tile .b{font-size:12px;color:var(--mute)}
-.tile.s .n{color:var(--star)} .tile.k .n{color:var(--keep)} .tile.r .n{color:var(--reject)}
+.tile.s .n{color:var(--star)}.tile.k .n{color:var(--keep)}.tile.r .n{color:var(--reject)}
 .warn{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--star-soft);border:1px solid var(--star)}
 .exp{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
 .exp-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -165,28 +151,22 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
 .bar{height:6px;border-radius:3px;background:var(--raise);overflow:hidden}
 .bar span{display:block;height:100%;width:0;background:var(--ink);transition:width .15s}
 .status{font-size:13px;color:var(--mute);min-height:1em}
-.exp.rc{background:var(--reject-soft);border-color:var(--reject)}
 .exp.rc .status{color:var(--ink)}
-.tally .pill{color:var(--reject);border:1px solid var(--reject);border-radius:999px;padding:0 8px;font-weight:500}
-.chip.r{background:var(--reject);color:var(--ground)}
+.rc-actions{display:flex;gap:10px;flex-wrap:wrap}
+.sel{min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--raise);color:var(--ink);font-weight:600}
 .parts{display:flex;gap:8px;flex-wrap:wrap}
 .foot{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 104px);max-width:min(92vw,440px);padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--ground);font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:20;text-align:center}
-
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 104px);max-width:min(92vw,440px);padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--ground);font-size:14px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:40;text-align:center}
 @media (max-width:480px){
   .count{font-size:18px}
   .rail{gap:10px}
   .legend{grid-template-rows:auto 120px auto;grid-template-columns:minmax(0,1fr) 96px minmax(0,1fr)}
   .legend .frame{width:96px;height:120px}
 }
-@media (prefers-reduced-motion:reduce){
-  *{animation:none!important;transition:none!important}
-}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-
 <div class="app">
 
   <section id="start" class="screen">
@@ -250,6 +230,7 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
         <div id="chip" class="chip">Unassigned</div>
       </div>
       <button id="rotBtn" class="icon-btn rot" aria-label="Rotate anticlockwise" title="Rotate anticlockwise (D)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
+      <button id="dlBtn" class="icon-btn dlb" aria-label="Download this photo" title="Download this photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg></button>
     </div>
     <nav class="verdicts" aria-label="Verdict">
       <button id="bR" class="v r" aria-label="Reject"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Reject</span><kbd>←</kbd></button>
@@ -278,8 +259,11 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
 
       <div id="rcPanel" class="exp rc">
         <div class="exp-head">
-          <div><h2>Second look at rejects</h2><div class="desc">See only your rejects again. Swipe right or up on any you want back.</div></div>
-          <button id="rcBtn" class="btn">Recull rejects</button>
+          <div><h2>Second look</h2><div class="desc">Pick a group to go through again. Swipe to confirm or change each verdict.</div></div>
+          <div class="rc-actions">
+            <select id="rcSel" class="sel" aria-label="Group to recull"><option value="r">Rejects</option><option value="s">Starred</option><option value="k">Keep</option></select>
+            <button id="rcBtn" class="btn">Recull</button>
+          </div>
         </div>
         <div class="status" id="rcNote"></div>
       </div>
@@ -312,6 +296,7 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
     </div>
   </section>
 </div>
+
 <div id="sheet" class="sheet-wrap" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
   <div class="sheet">
     <div class="sheet-head">
@@ -339,12 +324,13 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
           <dt>Swipe ↑</dt><dd>Star</dd>
           <dt>Back</dt><dd>Undo the last call<small>Button under the photo</small></dd>
           <dt>↺</dt><dd>Rotate anticlockwise<small>Button at the photo's top right</small></dd>
+          <dt>⤓</dt><dd>Download this photo<small>Button at the photo's bottom right</small></dd>
         </dl>
       </section>
     </div>
     <div class="note">
       <p>Rotating only changes how a photo is shown here. Downloaded files are untouched.</p>
-      <p>After culling, use Recull rejects on the results screen to give your rejects a second look.</p>
+      <p>After culling, use Second look on the results screen to go back through your rejects, keeps or stars.</p>
     </div>
   </div>
 </div>
@@ -355,7 +341,6 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
 const $ = id => document.getElementById(id);
 const LS = 'swipecull.v1';
 const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-// Plain-website download: hand the browser a blob link.
 const plainDownloads = {
   save({ filename, data }) {
     const blob = data instanceof Blob ? data : new Blob([data]);
@@ -372,18 +357,16 @@ const dlP = (window.claude && typeof window.claude.use === 'function')
   : Promise.resolve(plainDownloads);
 
 /* ---------- state ---------- */
-let items = [];            // {file, path, rel, name, dir, key}
-let keyIndex = new Map();
-let rootName = 'photos';
-let cur = -1;
-let ver = 0;
+let items = [], keyIndex = new Map(), rootName = 'photos', cur = -1, ver = 0;
 const dec = new Map();     // key -> 'k' | 's' | 'r'
-let hist = [];             // undo stack: {k, v, p} = key, new verdict, previous verdict (null = was unassigned)
-let mode = 'all';          // 'all' = sort unassigned photos, 'recull' = second look at rejects
-let rc = null;             // recull pass: {set: keys rejected at start, reviewed: keys decided this pass, round}
+let hist = [];             // {k, v, p}: key, new verdict, previous verdict (null = was unassigned)
+let mode = 'all';          // 'all' | 'recull'
+let rc = null;             // {set, reviewed, round, src}: src = the verdict being re-reviewed
 let rounds = 1;
 const cache = {};
 let saveT = 0, saveWarned = false;
+const RC = { r:'Rejects', s:'Starred', k:'Keep' };
+const RCE = { r:'Rejected earlier', s:'Starred earlier', k:'Kept earlier' };
 
 try {
   const raw = localStorage.getItem(LS);
@@ -395,21 +378,16 @@ try {
   }
 } catch (e) {}
 
-function save(){
-  clearTimeout(saveT);
-  saveT = setTimeout(writeNow, 250);
-}
+function save(){ clearTimeout(saveT); saveT = setTimeout(writeNow, 250); }
 function writeNow(){
   clearTimeout(saveT);
-  {
-    try {
-      const d = {};
-      for (const [k, v] of dec) if (!k.startsWith('sample:')) d[k] = v;
-      const h = hist.filter(e => !e.k.startsWith('sample:') && dec.has(e.k)).slice(-20000).map(e => [e.k, e.v, e.p]);
-      localStorage.setItem(LS, JSON.stringify({ d, h }));
-    } catch (e) {
-      if (!saveWarned) { saveWarned = true; toast("Progress can't be saved in this browser, so finish in one sitting."); }
-    }
+  try {
+    const d = {};
+    for (const [k, v] of dec) if (!k.startsWith('sample:')) d[k] = v;
+    const h = hist.filter(e => !e.k.startsWith('sample:') && dec.has(e.k)).slice(-20000).map(e => [e.k, e.v, e.p]);
+    localStorage.setItem(LS, JSON.stringify({ d, h }));
+  } catch (e) {
+    if (!saveWarned) { saveWarned = true; toast("Progress can't be saved in this browser, so finish in one sitting."); }
   }
 }
 
@@ -419,9 +397,7 @@ function toast(msg, ms){
   const t = $('toast'); t.textContent = msg; t.hidden = false;
   clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms || 3200);
 }
-function show(name){
-  for (const s of ['start','cull','done']) $(s).hidden = s !== name;
-}
+function show(name){ for (const s of ['start','cull','done']) $(s).hidden = s !== name; }
 function fmt(b){
   if (b < 1e6) return Math.max(1, Math.round(b/1e3)) + ' KB';
   if (b < 1e9) return (b/1e6).toFixed(b < 1e7 ? 1 : 0) + ' MB';
@@ -560,7 +536,7 @@ async function makeSamples(){
 $('trySample').onclick = async () => { ingest(await makeSamples(), { sample: true }); };
 
 /* ---------- navigation ---------- */
-function rcPending(k){ return !!rc && rc.set.has(k) && !rc.reviewed.has(k) && dec.get(k) === 'r'; }
+function rcPending(k){ return !!rc && rc.set.has(k) && !rc.reviewed.has(k) && dec.get(k) === rc.src; }
 function isPending(i){
   const k = items[i].key;
   return mode === 'recull' ? rcPending(k) : !dec.has(k);
@@ -622,7 +598,7 @@ function preloadAfter(n){
 const card = $('card'), img = $('img'), stage = $('stage');
 
 /* view-only rotation, per photo (files are never changed) */
-const rot = new Map();     // key -> degrees, kept cumulative so turns animate the short way
+const rot = new Map();
 let rotT = 0;
 function fitRot(el, key){
   const d = rot.get(key) || 0;
@@ -670,14 +646,15 @@ function render(enter){
     const left = rcLeft();
     $('frameNo').textContent = pad(rc.set.size - left + 1);
     $('frameTotal').textContent = pad(rc.set.size);
-    $('modePill').textContent = `${lookLabel(rc.round)} · ${left} left`;
+    $('modePill').textContent = `${lookLabel(rc.round)} · ${RC[rc.src]} · ${left} left`;
   } else {
     $('frameNo').textContent = pad(cur + 1);
     $('frameTotal').textContent = pad(items.length);
   }
   $('modePill').hidden = !rcOn;
-  $('chip').textContent = rcOn ? 'Rejected earlier' : 'Unassigned';
-  $('chip').classList.toggle('r', rcOn);
+  $('modePill').className = 'pill' + (rcOn ? ' ' + rc.src : '');
+  $('chip').textContent = rcOn ? RCE[rc.src] : 'Unassigned';
+  $('chip').className = 'chip' + (rcOn ? ' ' + rc.src : '');
   $('fname').textContent = it.name; $('fname').title = it.name;
   $('fpath').textContent = rootName + (it.dir ? ' / ' + it.dir.split('/').join(' / ') : '');
   setMain(cur);
@@ -685,9 +662,7 @@ function render(enter){
   if (n >= 0) { $('cardNext').hidden = false; const ni = $('imgNext'); const u = urlFor(n); if (ni.src !== u) ni.src = u; fitRot(ni, items[n].key); }
   else $('cardNext').hidden = true;
   preloadAfter(n);
-  const c = counts(), t = items.length || 1;
-  $('nK').textContent = c.k; $('nS').textContent = c.s; $('nR').textContent = c.r; $('nU').textContent = c.u;
-  $('tK').style.width = (c.k / t * 100) + '%'; $('tS').style.width = (c.s / t * 100) + '%'; $('tR').style.width = (c.r / t * 100) + '%';
+  updateTallyOnly();
   $('bU').disabled = lastUndoIndex() < 0;
   resetCard();
   if (enter && !reduced) { card.classList.remove('enter'); void card.offsetWidth; card.classList.add('enter'); }
@@ -697,6 +672,11 @@ function resetCard(){
   card.style.transition = 'none';
   card.style.transform = '';
   card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0);
+}
+function updateTallyOnly(){
+  const c = counts(), t = items.length || 1;
+  $('nK').textContent = c.k; $('nS').textContent = c.s; $('nR').textContent = c.r; $('nU').textContent = c.u;
+  $('tK').style.width = (c.k / t * 100) + '%'; $('tS').style.width = (c.s / t * 100) + '%'; $('tR').style.width = (c.r / t * 100) + '%';
 }
 
 /* ---------- decisions ---------- */
@@ -733,20 +713,15 @@ function decide(v, fromTransform){
   if (cur < 0) { resetCard(); setTimeout(showDone, reduced ? 0 : 320); updateTallyOnly(); }
   else render(false);
 }
-function updateTallyOnly(){
-  const c = counts(), t = items.length || 1;
-  $('nK').textContent = c.k; $('nS').textContent = c.s; $('nR').textContent = c.r; $('nU').textContent = c.u;
-  $('tK').style.width = (c.k / t * 100) + '%'; $('tS').style.width = (c.s / t * 100) + '%'; $('tR').style.width = (c.r / t * 100) + '%';
-}
 function undo(){
   const j = lastUndoIndex();
   if (j < 0) { toast('Nothing to go back to yet.'); return; }
   const e = hist[j];
   hist.splice(j, 1);
   if (e.p) {
-    // a second-look decision: put the photo back to its earlier verdict and back in the recull queue
+    // a second-look decision: restore the earlier verdict and put the photo back in that recull queue
     dec.set(e.k, e.p);
-    if (!rc) rc = { set: new Set(), reviewed: new Set(), round: Math.max(2, rounds) };
+    if (!rc || rc.src !== e.p) rc = { set: new Set(), reviewed: new Set(), round: Math.max(2, rounds), src: e.p };
     rc.set.add(e.k); rc.reviewed.delete(e.k);
     mode = 'recull';
   } else {
@@ -766,24 +741,25 @@ $('bS').onclick = () => decide('s');
 $('bU').onclick = () => undo();
 $('finishBtn').onclick = () => showDone();
 $('rotBtn').onclick = () => rotate(-1);
+$('dlBtn').onclick = async () => {
+  if (cur < 0) return;
+  const it = items[cur], dl = await dlP;
+  if (!dl) { toast("Downloads aren't available in this view."); return; }
+  try { await dl.save({ filename: it.name, data: it.file }); toast('Saved ' + it.name + '.'); }
+  catch (e) { toast(e && e.code === 'declined' ? 'Download cancelled.' : "The download didn't go through."); }
+};
 
 /* shortcuts panel */
 let sheetReturn = null;
-function openSheet(){
-  sheetReturn = document.activeElement;
-  $('sheet').hidden = false;
-  $('sheetClose').focus();
-}
-function closeSheet(){
-  $('sheet').hidden = true;
-  if (sheetReturn && sheetReturn.focus) sheetReturn.focus();
-}
+function openSheet(){ sheetReturn = document.activeElement; $('sheet').hidden = false; $('sheetClose').focus(); }
+function closeSheet(){ $('sheet').hidden = true; if (sheetReturn && sheetReturn.focus) sheetReturn.focus(); }
 document.querySelectorAll('.info-btn').forEach(b => b.onclick = openSheet);
 $('sheetClose').onclick = closeSheet;
 $('sheet').addEventListener('click', e => { if (e.target === $('sheet')) closeSheet(); });
 
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+  if (e.target && e.target.tagName === 'SELECT') return;
   const k = e.key;
   if (!$('sheet').hidden) {
     if (k === 'Escape' || k === 'i' || k === 'I') { e.preventDefault(); closeSheet(); }
@@ -852,33 +828,45 @@ function showDone(){
   $('exSel').disabled = c.s + c.k === 0;
   $('exRej').disabled = c.r === 0;
   $('backBtn').disabled = lastUndoIndex() < 0;
-  const left = rcLeft();
-  $('rcPanel').hidden = c.r === 0 && !(rc && rc.reviewed.size);
-  $('rcBtn').hidden = c.r === 0;
-  $('rcBtn').textContent = left > 0 ? `Continue · ${left} left` : `Recull ${c.r} reject${c.r === 1 ? '' : 's'}`;
-  if (rc && rc.reviewed.size) {
-    let back = 0;
-    for (const k of rc.reviewed) if (keyIndex.has(k) && (dec.get(k) === 'k' || dec.get(k) === 's')) back++;
-    $('rcNote').textContent = `${lookLabel(rc.round)}: ${back} of ${rc.reviewed.size} reviewed reject${rc.reviewed.size === 1 ? '' : 's'} moved to your selects` + (left > 0 ? `, ${left} still to review.` : '.');
-  } else $('rcNote').textContent = '';
+  $('rcPanel').hidden = c.r + c.s + c.k === 0;
+  updateRc(c, rc && rcLeft() > 0 ? rc.src : null);
   for (const kind of ['sel','rej']) {
     const ch = cache[kind];
     if (!ch || ch.ver !== ver) { $(kind + 'Parts').innerHTML = ''; $(kind + 'Status').textContent = ''; $(kind === 'sel' ? 'exSel' : 'exRej').textContent = kind === 'sel' ? 'Download selects .zip' : 'Download rejects .zip'; }
   }
 }
+function updateRc(c, pick){
+  const sel = $('rcSel'), n = { r:c.r, s:c.s, k:c.k };
+  if (pick) sel.value = pick;
+  if (!n[sel.value]) sel.value = ['r','s','k'].find(x => n[x]) || 'r';
+  [...sel.options].forEach(o => { o.textContent = `${RC[o.value]} (${n[o.value]})`; o.disabled = !n[o.value]; });
+  const v = sel.value, left = rc && rc.src === v ? rcLeft() : 0;
+  $('rcBtn').disabled = !n[v];
+  $('rcBtn').textContent = left > 0 ? `Continue · ${left} left` : `Recull ${n[v]} photo${n[v] === 1 ? '' : 's'}`;
+  if (rc && rc.reviewed.size) {
+    let changed = 0;
+    for (const k of rc.reviewed) if (keyIndex.has(k) && dec.get(k) !== rc.src) changed++;
+    const l = rcLeft();
+    $('rcNote').textContent = `${lookLabel(rc.round)} (${RC[rc.src].toLowerCase()}): ${changed} of ${rc.reviewed.size} reviewed photo${rc.reviewed.size === 1 ? '' : 's'} changed verdict` + (l > 0 ? `, ${l} still to review.` : '.');
+  } else $('rcNote').textContent = '';
+}
+$('rcSel').onchange = () => updateRc(counts());
 $('keepCulling').onclick = () => { mode = 'all'; cur = nextUnassigned(0); if (cur >= 0) { show('cull'); img.dataset.key = ''; render(true); } };
 function startRecull(){
-  if (!(rc && rcLeft() > 0)) {
-    const set = new Set(items.filter(it => dec.get(it.key) === 'r').map(it => it.key));
+  const src = $('rcSel').value;
+  if (!(rc && rc.src === src && rcLeft() > 0)) {
+    const set = new Set(items.filter(it => dec.get(it.key) === src).map(it => it.key));
     if (!set.size) return;
     rounds++;
-    rc = { set, reviewed: new Set(), round: rounds };
+    rc = { set, reviewed: new Set(), round: rounds, src };
   }
   mode = 'recull';
   cur = nextUnassigned(0);
   if (cur < 0) { mode = 'all'; showDone(); return; }
   show('cull'); img.dataset.key = ''; render(true);
-  toast('Swipe right or up to bring a photo back. Swipe left to leave it rejected.');
+  toast({ r:'Swipe right or up to bring a photo back. Swipe left to leave it rejected.',
+          s:'Swipe up to keep it starred, right to downgrade to keep, left to reject.',
+          k:'Swipe right to keep, up to star, left to reject.' }[src]);
 }
 $('rcBtn').onclick = startRecull;
 $('backBtn').onclick = () => undo();
@@ -961,6 +949,7 @@ async function buildZips(entries, onProg){
     return { blob: new Blob([...q.chunks, ...q.central, eo], { type: 'application/zip' }), count: q.count, bytes: q.bytes };
   });
 }
+const base = () => (rootName.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'photos');
 function entriesFor(kind){
   const out = [], used = new Set();
   const addAs = (it, folder) => {
@@ -978,7 +967,6 @@ function entriesFor(kind){
   return out;
 }
 function clearExports(){ delete cache.sel; delete cache.rej; }
-const base = () => (rootName.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'photos');
 
 const ui = k => ({ btn: $(k === 'sel' ? 'exSel' : 'exRej'), bar: $(k + 'Bar'), status: $(k + 'Status'), parts: $(k + 'Parts') });
 async function runExport(kind){
@@ -1045,7 +1033,6 @@ async function savePart(kind, i, btn){
 $('exSel').onclick = () => runExport('sel');
 $('exRej').onclick = () => runExport('rej');
 
-// Save right away, and ask before leaving while real photos are loaded (they'd need picking again).
 window.addEventListener('beforeunload', e => {
   writeNow();
   if (items.length && !items[0].key.startsWith('sample:')) { e.preventDefault(); e.returnValue = ''; }
@@ -1053,6 +1040,5 @@ window.addEventListener('beforeunload', e => {
 window.addEventListener('pagehide', () => { writeNow(); revokeAll(); });
 })();
 </script>
-
 </body>
 </html>
