@@ -329,6 +329,7 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
       </section>
     </div>
     <div class="note">
+      <p>Zips keep each photo's modified time to the second (UTC). Browsers can't read creation time.</p>
       <p>Rotating only changes how a photo is shown here. Downloaded files are untouched.</p>
       <p>After culling, use Second look on the results screen to go back through your rejects, keeps or stars.</p>
     </div>
@@ -919,25 +920,28 @@ async function buildZips(entries, onProg){
   let p = fresh();
   for (const e of entries) {
     const name = enc.encode(e.name), size = e.file.size;
-    const need = 30 + name.length + size + 46 + name.length;
+    const need = 30 + name.length + size + 46 + name.length + 20;
     if (p.count > 0 && (p.offset + p.cd + need + 22 > LIMIT || p.count >= 65000)) { parts.push(p); p = fresh(); }
     let crc;
     try { crc = await crcFile(e.file, n => onProg(doneBytes + n, total)); }
     catch (err) { throw new Error(`Couldn't read ${e.name}. It may have been moved or deleted. Open the folder again and retry.`); }
     doneBytes += size;
     const { time, date } = dosTime(e.file.lastModified);
-    const lh = new Uint8Array(30 + name.length), lv = new DataView(lh.buffer);
+    const ut = Math.floor((e.file.lastModified || Date.now()) / 1000), no = name.length;
+    const lh = new Uint8Array(30 + no + 9), lv = new DataView(lh.buffer);
     lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true); lv.setUint16(8, 0, true);
     lv.setUint16(10, time, true); lv.setUint16(12, date, true); lv.setUint32(14, crc, true);
-    lv.setUint32(18, size, true); lv.setUint32(22, size, true); lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true);
+    lv.setUint32(18, size, true); lv.setUint32(22, size, true); lv.setUint16(26, no, true); lv.setUint16(28, 9, true);
     lh.set(name, 30);
-    const ch = new Uint8Array(46 + name.length), cv = new DataView(ch.buffer);
+    lv.setUint16(30 + no, 0x5455, true); lv.setUint16(32 + no, 5, true); lh[34 + no] = 1; lv.setUint32(35 + no, ut, true);
+    const ch = new Uint8Array(46 + no + 9), cv = new DataView(ch.buffer);
     cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true);
     cv.setUint16(12, time, true); cv.setUint16(14, date, true); cv.setUint32(16, crc, true);
     cv.setUint32(20, size, true); cv.setUint32(24, size, true); cv.setUint16(28, name.length, true);
-    cv.setUint16(30, 0, true); cv.setUint16(32, 0, true); cv.setUint16(34, 0, true); cv.setUint16(36, 0, true);
+    cv.setUint16(30, 9, true); cv.setUint16(32, 0, true); cv.setUint16(34, 0, true); cv.setUint16(36, 0, true);
     cv.setUint32(38, 0, true); cv.setUint32(42, p.offset, true);
     ch.set(name, 46);
+    cv.setUint16(46 + no, 0x5455, true); cv.setUint16(48 + no, 5, true); ch[50 + no] = 1; cv.setUint32(51 + no, ut, true);
     p.chunks.push(lh, e.file); p.central.push(ch);
     p.offset += lh.length + size; p.cd += ch.length; p.count++; p.bytes += size;
   }
