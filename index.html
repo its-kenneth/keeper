@@ -42,6 +42,9 @@ p{margin:0}
 .rot svg{width:22px;height:22px}
 .dlb{position:absolute;right:10px;bottom:10px;z-index:4;width:44px;height:44px;background:var(--shade);border-color:transparent}
 .dlb svg{width:22px;height:22px}
+.zbadge{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:4;font-family:var(--f-mono);font-size:12px;padding:4px 10px;border-radius:999px;background:var(--shade);color:var(--ink);pointer-events:none}
+.card.zoomed,.card.zoomed:active{cursor:move}
+@media (hover:none),(pointer:coarse){.skip{display:none}}
 @media (hover:none),(pointer:coarse){.rot{display:inline-flex}.stamp.r{top:66px}}
 .sheet-wrap{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:18px;width:min(100%,560px);max-height:100%;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:18px;box-shadow:0 16px 48px rgba(0,0,0,.5)}
@@ -206,6 +209,7 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
         <div id="fpath" class="fpath mono"></div>
       </div>
       <div class="rail-end">
+        <button id="skipBtn" class="btn small skip" title="Reject every photo still waiting in this folder">Skip folder</button>
         <button class="icon-btn info-btn" aria-label="Shortcuts" title="Shortcuts (I)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 10.5v7"/><circle cx="12" cy="6.6" r="1.3" fill="currentColor" stroke="none"/></svg></button>
         <button id="finishBtn" class="btn small">Finish</button>
       </div>
@@ -230,7 +234,8 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
         <div id="chip" class="chip">Unassigned</div>
       </div>
       <button id="rotBtn" class="icon-btn rot" aria-label="Rotate anticlockwise" title="Rotate anticlockwise (D)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
-      <button id="dlBtn" class="icon-btn dlb" aria-label="Download this photo" title="Download this photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg></button>
+      <button id="dlBtn" class="icon-btn dlb" aria-label="Download this photo" title="Download this photo (S)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg></button>
+      <div id="zoomBadge" class="zbadge" hidden>2×</div>
     </div>
     <nav class="verdicts" aria-label="Verdict">
       <button id="bR" class="v r" aria-label="Reject"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Reject</span><kbd>←</kbd></button>
@@ -313,6 +318,10 @@ kbd{font-family:var(--f-mono);font-size:12px;min-width:24px;height:24px;display:
           <dt><kbd>↓</kbd></dt><dd>Back to the last photo</dd>
           <dt><kbd>D</kbd></dt><dd>Rotate anticlockwise</dd>
           <dt><kbd>F</kbd></dt><dd>Rotate clockwise</dd>
+          <dt><kbd>Z</kbd></dt><dd>Zoom in on the centre<small>Press again to go closer. Drag to look around.</small></dd>
+          <dt><kbd>⇧</kbd><kbd>Z</kbd></dt><dd>Zoom out</dd>
+          <dt><kbd>S</kbd></dt><dd>Download this photo</dd>
+          <dt>Skip folder</dt><dd>Reject the rest of this folder<small>Button in the top bar. Back undoes it.</small></dd>
           <dt><kbd>I</kbd></dt><dd>Show or hide shortcuts</dd>
         </dl>
       </section>
@@ -374,7 +383,7 @@ try {
   if (raw) {
     const o = JSON.parse(raw);
     for (const k in (o.d || {})) dec.set(k, o.d[k]);
-    if (Array.isArray(o.h)) hist = o.h.filter(Array.isArray).map(([k, v, p]) => ({ k, v, p: p || null }));
+    if (Array.isArray(o.h)) hist = o.h.filter(Array.isArray).map(([k, v, p, g]) => ({ k, v, p: p || null, g: g || undefined }));
     else if (Array.isArray(o.o)) hist = o.o.filter(k => dec.has(k)).map(k => ({ k, v: dec.get(k), p: null }));
   }
 } catch (e) {}
@@ -385,7 +394,7 @@ function writeNow(){
   try {
     const d = {};
     for (const [k, v] of dec) if (!k.startsWith('sample:')) d[k] = v;
-    const h = hist.filter(e => !e.k.startsWith('sample:') && dec.has(e.k)).slice(-20000).map(e => [e.k, e.v, e.p]);
+    const h = hist.filter(e => !e.k.startsWith('sample:') && dec.has(e.k)).slice(-20000).map(e => e.g ? [e.k, e.v, e.p, e.g] : [e.k, e.v, e.p]);
     localStorage.setItem(LS, JSON.stringify({ d, h }));
   } catch (e) {
     if (!saveWarned) { saveWarned = true; toast("Progress can't be saved in this browser, so finish in one sitting."); }
@@ -601,33 +610,53 @@ const card = $('card'), img = $('img'), stage = $('stage');
 /* view-only rotation, per photo (files are never changed) */
 const rot = new Map();
 let rotT = 0;
-function fitRot(el, key){
+let zoom = 1, panX = 0, panY = 0;
+const ZMAX = 8;
+function fitRot(el, key, z, px, py){
+  z = z || 1; px = px || 0; py = py || 0;
   const d = rot.get(key) || 0;
   const W = stage.clientWidth, H = stage.clientHeight;
   const sideways = Math.abs(Math.round(d / 90)) % 2 === 1;
   el.style.width = (sideways ? H : W) + 'px';
   el.style.height = (sideways ? W : H) + 'px';
-  el.style.transform = `translate(-50%, -50%) rotate(${d}deg)`;
+  el.style.transform = `translate(-50%, -50%) translate(${px}px, ${py}px) scale(${z}) rotate(${d}deg)`;
+}
+function fitMain(){ if (cur >= 0 && items[cur]) fitRot(img, items[cur].key, zoom, panX, panY); }
+function clampPan(){
+  const mx = stage.clientWidth * (zoom - 1) / 2, my = stage.clientHeight * (zoom - 1) / 2;
+  panX = Math.max(-mx, Math.min(mx, panX)); panY = Math.max(-my, Math.min(my, panY));
+}
+function animateImg(){ if (reduced) return; img.classList.add('turning'); clearTimeout(rotT); rotT = setTimeout(() => img.classList.remove('turning'), 260); }
+function setZoom(z, quiet){
+  z = Math.max(1, Math.min(ZMAX, z));
+  if (z !== zoom && !quiet) animateImg();
+  panX = panX * z / zoom; panY = panY * z / zoom;   // keep the same spot centred
+  zoom = z;
+  if (zoom === 1) { panX = 0; panY = 0; }
+  clampPan(); fitMain();
+  card.classList.toggle('zoomed', zoom > 1);
+  $('zoomBadge').hidden = zoom === 1;
+  $('zoomBadge').textContent = zoom + '×';
 }
 function rotate(dir){
   if (cur < 0 || $('cull').hidden) return;
   const k = items[cur].key;
   rot.set(k, (rot.get(k) || 0) + dir * 90);
-  if (!reduced) { img.classList.add('turning'); clearTimeout(rotT); rotT = setTimeout(() => img.classList.remove('turning'), 260); }
-  fitRot(img, k);
+  animateImg();
+  fitMain();
 }
 window.addEventListener('resize', () => {
   if ($('cull').hidden || cur < 0) return;
   img.classList.remove('turning');
-  fitRot(img, items[cur].key);
+  clampPan(); fitMain();
   const n = peekNext(); if (n >= 0) fitRot($('imgNext'), items[n].key);
 });
 
 function setMain(i){
   const it = items[i];
-  if (img.dataset.key === it.key) { fitRot(img, it.key); return; }
+  if (img.dataset.key === it.key) { fitMain(); return; }
   img.classList.remove('turning');
-  fitRot(img, it.key);
+  setZoom(1, true);
   card.classList.remove('broken');
   card.classList.add('loading');
   img.dataset.key = it.key;
@@ -658,6 +687,10 @@ function render(enter){
   $('chip').className = 'chip' + (rcOn ? ' ' + rc.src : '');
   $('fname').textContent = it.name; $('fname').title = it.name;
   $('fpath').textContent = rootName + (it.dir ? ' / ' + it.dir.split('/').join(' / ') : '');
+  const fp = folderPending().length;
+  $('skipBtn').disabled = fp === 0;
+  $('skipBtn').textContent = `Skip folder · ${fp}`;
+  $('skipBtn').title = `Reject the ${fp} photo${fp === 1 ? '' : 's'} left in ${folderName(it)}`;
   setMain(cur);
   const n = peekNext();
   if (n >= 0) { $('cardNext').hidden = false; const ni = $('imgNext'); const u = urlFor(n); if (ni.src !== u) ni.src = u; fitRot(ni, items[n].key); }
@@ -718,19 +751,22 @@ function undo(){
   const j = lastUndoIndex();
   if (j < 0) { toast('Nothing to go back to yet.'); return; }
   const e = hist[j];
-  hist.splice(j, 1);
+  // a skipped folder is one step: undo every photo in that group together
+  const group = e.g ? hist.filter(x => x.g === e.g && keyIndex.has(x.k) && dec.get(x.k) === x.v) : [e];
+  const gs = new Set(group);
+  hist = hist.filter(x => !gs.has(x));
+  for (const x of group) { if (x.p) dec.set(x.k, x.p); else dec.delete(x.k); }
   if (e.p) {
     // a second-look decision: restore the earlier verdict and put the photo back in that recull queue
-    dec.set(e.k, e.p);
     if (!rc || rc.src !== e.p) rc = { set: new Set(), reviewed: new Set(), round: Math.max(2, rounds), src: e.p };
-    rc.set.add(e.k); rc.reviewed.delete(e.k);
+    for (const x of group) { rc.set.add(x.k); rc.reviewed.delete(x.k); }
     mode = 'recull';
   } else {
-    dec.delete(e.k);
     mode = 'all';
   }
   ver++; save();
-  cur = keyIndex.get(e.k);
+  cur = keyIndex.get(group[0].k);
+  if (group.length > 1) toast(`Brought back ${group.length} photos from ${folderName(items[cur])}.`);
   show('cull');
   img.dataset.key = '';
   render(true);
@@ -742,13 +778,42 @@ $('bS').onclick = () => decide('s');
 $('bU').onclick = () => undo();
 $('finishBtn').onclick = () => showDone();
 $('rotBtn').onclick = () => rotate(-1);
-$('dlBtn').onclick = async () => {
-  if (cur < 0) return;
+function folderName(it){ return it && it.dir ? it.dir.split('/').pop() : rootName; }
+function folderPending(){
+  if (cur < 0) return [];
+  const dir = items[cur].dir, out = [cur];
+  for (let i = 0; i < items.length; i++) if (i !== cur && items[i].dir === dir && isPending(i)) out.push(i);
+  return isPending(cur) ? out : out.slice(1);
+}
+function skipFolder(){
+  if (cur < 0 || $('cull').hidden) return;
+  const idx = folderPending();
+  if (!idx.length) return;
+  const name = folderName(items[cur]);
+  const g = 'g' + Date.now().toString(36);
+  fly('r', card.style.transform);
+  for (const i of idx) {
+    const k = items[i].key;
+    const p = dec.has(k) ? dec.get(k) : null;
+    dec.set(k, 'r');
+    hist.push({ k, v: 'r', p, g });
+    if (mode === 'recull') rc.reviewed.add(k);
+  }
+  ver++; save();
+  toast(`Rejected ${idx.length} photo${idx.length === 1 ? '' : 's'} in ${name}. Press ↓ or Back to undo.`, 4500);
+  cur = nextUnassigned(cur + 1);
+  if (cur < 0) { resetCard(); setTimeout(showDone, reduced ? 0 : 320); updateTallyOnly(); }
+  else render(false);
+}
+$('skipBtn').onclick = skipFolder;
+async function downloadCurrent(){
+  if (cur < 0 || $('cull').hidden) return;
   const it = items[cur], dl = await dlP;
   if (!dl) { toast("Downloads aren't available in this view."); return; }
   try { await dl.save({ filename: it.name, data: it.file }); toast('Saved ' + it.name + '.'); }
   catch (e) { toast(e && e.code === 'declined' ? 'Download cancelled.' : "The download didn't go through."); }
-};
+}
+$('dlBtn').onclick = downloadCurrent;
 
 /* shortcuts panel */
 let sheetReturn = null;
@@ -774,6 +839,8 @@ document.addEventListener('keydown', e => {
     else if (k === 'ArrowDown') { e.preventDefault(); undo(); }
     else if (k === 'd' || k === 'D') { e.preventDefault(); rotate(-1); }
     else if (k === 'f' || k === 'F') { e.preventDefault(); rotate(1); }
+    else if (e.code === 'KeyZ' || k === 'z' || k === 'Z') { e.preventDefault(); setZoom(e.shiftKey ? zoom / 2 : zoom * 2); }
+    else if (k === 's' || k === 'S') { e.preventDefault(); downloadCurrent(); }
   } else if (!$('done').hidden && k === 'ArrowDown') { e.preventDefault(); undo(); }
 });
 
@@ -781,13 +848,14 @@ document.addEventListener('keydown', e => {
 let drag = null;
 card.addEventListener('pointerdown', e => {
   if (cur < 0 || (e.pointerType === 'mouse' && e.button !== 0)) return;
-  drag = { x: e.clientX, y: e.clientY, id: e.pointerId, moved: false };
+  drag = { x: e.clientX, y: e.clientY, id: e.pointerId, moved: false, pan: zoom > 1, px: panX, py: panY };
   card.setPointerCapture(e.pointerId);
   card.style.transition = 'none';
 });
 card.addEventListener('pointermove', e => {
   if (!drag || e.pointerId !== drag.id) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (drag.pan) { panX = drag.px + dx; panY = drag.py + dy; clampPan(); img.classList.remove('turning'); fitMain(); return; }
   if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
   card.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx / 22}deg)`;
   const W = stage.clientWidth, H = stage.clientHeight;
@@ -799,6 +867,7 @@ card.addEventListener('pointermove', e => {
 });
 function endDrag(e){
   if (!drag || e.pointerId !== drag.id) return;
+  if (drag.pan) { drag = null; return; }
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag = null;
   const W = stage.clientWidth, H = stage.clientHeight;
@@ -811,7 +880,7 @@ function endDrag(e){
   card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0);
 }
 card.addEventListener('pointerup', endDrag);
-card.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) { drag = null; card.style.transition = 'transform .2s'; card.style.transform = ''; card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0); } });
+card.addEventListener('pointercancel', e => { if (drag && drag.pan && e.pointerId === drag.id) { drag = null; return; } if (drag && e.pointerId === drag.id) { drag = null; card.style.transition = 'transform .2s'; card.style.transform = ''; card.querySelectorAll('.stamp').forEach(s => s.style.opacity = 0); } });
 
 /* ---------- done screen ---------- */
 function showDone(){
